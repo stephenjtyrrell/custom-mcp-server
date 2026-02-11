@@ -10,9 +10,6 @@ import * as azdev from "azure-devops-node-api";
 import { IWorkItemTrackingApi } from "azure-devops-node-api/WorkItemTrackingApi.js";
 import { WorkItem } from "azure-devops-node-api/interfaces/WorkItemTrackingInterfaces.js";
 import * as dotenv from "dotenv";
-import * as fs from "fs";
-import * as path from "path";
-import { v4 as uuidv4 } from "uuid";
 
 // Load environment variables
 dotenv.config();
@@ -68,12 +65,7 @@ const tools: Tool[] = [
     description: "List all projects in the Azure DevOps organization",
     inputSchema: {
       type: "object",
-      properties: {
-        top: {
-          type: "number",
-          description: "The maximum number of projects to return (optional)",
-        },
-      },
+      properties: {},
     },
   },
   {
@@ -131,12 +123,33 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "get_work_item": {
         const witApi: IWorkItemTrackingApi = await connection.getWorkItemTrackingApi();
         const workItem: WorkItem = await witApi.getWorkItem(args.id as number);
-        const filePath = saveJsonToFile(`workitem_${args.id}`, workItem);
+        
+        const fields = workItem.fields || {};
+        const formattedText = `# Work Item ${workItem.id}
+
+**Type:** ${fields['System.WorkItemType'] || 'N/A'}
+**Title:** ${fields['System.Title'] || 'N/A'}
+**State:** ${fields['System.State'] || 'N/A'}
+**Assigned To:** ${fields['System.AssignedTo']?.displayName || 'Unassigned'}
+**Priority:** ${fields['Microsoft.VSTS.Common.Priority'] || 'N/A'}
+**Created By:** ${fields['System.CreatedBy']?.displayName || 'N/A'}
+**Created Date:** ${fields['System.CreatedDate'] || 'N/A'}
+**Changed Date:** ${fields['System.ChangedDate'] || 'N/A'}
+
+## Description
+${fields['System.Description'] || 'No description'}
+
+## Tags
+${fields['System.Tags'] || 'None'}
+
+## Links
+**URL:** ${workItem._links?.html?.href || 'N/A'}`;
+        
         return {
           content: [
             {
               type: "text",
-              text: `Raw JSON saved at: ${filePath}`,
+              text: formattedText,
             },
           ],
         };
@@ -144,21 +157,40 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "query_work_items": {
         const witApi: IWorkItemTrackingApi = await connection.getWorkItemTrackingApi();
-        const wiql = { query: args.wiql as string };
-        const queryResult = await witApi.queryByWiql(wiql, { project: args.project as string });
+        const wiql = {
+          query: args.wiql as string,
+        };
+        
+        const queryResult = await witApi.queryByWiql(wiql, {
+          project: args.project as string,
+        });
+        
+        // Get full work item details if IDs are returned
         if (queryResult.workItems && queryResult.workItems.length > 0) {
           const ids = queryResult.workItems.map(wi => wi.id!);
           const workItems = await witApi.getWorkItems(ids);
-          const filePath = saveJsonToFile("query_work_items", workItems);
+          
+          // Format as markdown table
+          let output = `# Query Results\n\nFound ${workItems.length} work items:\n\n`;
+          output += '| ID | Type | Title | State | Assigned To |\n';
+          output += '|---|---|---|---|---|\n';
+          
+          workItems.forEach(wi => {
+            const f = wi.fields || {};
+            const title = (f['System.Title'] || '').replace(/\|/g, '\\|').substring(0, 50);
+            output += `| ${wi.id} | ${f['System.WorkItemType'] || ''} | ${title} | ${f['System.State'] || ''} | ${f['System.AssignedTo']?.displayName || 'Unassigned'} |\n`;
+          });
+          
           return {
             content: [
               {
                 type: "text",
-                text: `Raw JSON saved at: ${filePath}`,
+                text: output,
               },
             ],
           };
         }
+        
         return {
           content: [
             {
@@ -171,14 +203,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "list_projects": {
         const coreApi = await connection.getCoreApi();
-        const top = args.top || undefined;
-        const projects = await coreApi.getProjects({ top });
-        const filePath = saveJsonToFile("list_projects", projects);
+        const projects = await coreApi.getProjects();
+        
+        let output = `# Azure DevOps Projects\n\nFound ${projects.length} projects:\n\n`;
+        
+        projects.forEach(project => {
+          output += `## ${project.name}\n`;
+          output += `- **ID:** ${project.id}\n`;
+          output += `- **Description:** ${project.description || 'No description'}\n`;
+          output += `- **State:** ${project.state}\n`;
+          output += `- **Visibility:** ${project.visibility}\n`;
+          output += `- **URL:** ${project.url}\n\n`;
+        });
+        
         return {
           content: [
             {
               type: "text",
-              text: `Raw JSON saved at: ${filePath}`,
+              text: output,
             },
           ],
         };
@@ -187,12 +229,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "get_project_teams": {
         const coreApi = await connection.getCoreApi();
         const teams = await coreApi.getTeams(args.projectId as string);
-        const filePath = saveJsonToFile(`project_teams_${args.projectId}`, teams);
+        
+        let output = `# Project Teams\n\nFound ${teams.length} teams in project:\n\n`;
+        
+        teams.forEach(team => {
+          output += `## ${team.name}\n`;
+          output += `- **ID:** ${team.id}\n`;
+          output += `- **Description:** ${team.description || 'No description'}\n`;
+          output += `- **URL:** ${team.url}\n\n`;
+        });
+        
         return {
           content: [
             {
               type: "text",
-              text: `Raw JSON saved at: ${filePath}`,
+              text: output,
             },
           ],
         };
@@ -233,12 +284,3 @@ main().catch((error) => {
   console.error("Fatal error:", error);
   process.exit(1);
 });
-
-function saveJsonToFile(prefix: string, data: any) {
-  const outDir = path.join(process.cwd(), "mcp-raw-json");
-  if (!fs.existsSync(outDir)) fs.mkdirSync(outDir);
-  const fileName = `${prefix}_${uuidv4()}.json`;
-  const filePath = path.join(outDir, fileName);
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-  return filePath;
-}
