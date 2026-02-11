@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "azure-devops-onprem": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["/Users/stephentyrrell/Documents/Code/custom-mcp-server/dist/index.js"]
+    }
+  }
+}

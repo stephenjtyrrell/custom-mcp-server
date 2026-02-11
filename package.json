@@ -1,0 +1,32 @@
+{
+  "name": "azure-devops-onprem-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Azure DevOps on-premise API integration",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "azure-devops-onprem-mcp-server": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "start": "node dist/index.js",
+    "dev": "tsc && node dist/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "azure-devops",
+    "mcp-server"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "azure-devops-node-api": "^14.0.2",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}
