@@ -10,6 +10,9 @@ import * as azdev from "azure-devops-node-api";
 import { IWorkItemTrackingApi } from "azure-devops-node-api/WorkItemTrackingApi.js";
 import { WorkItem } from "azure-devops-node-api/interfaces/WorkItemTrackingInterfaces.js";
 import * as dotenv from "dotenv";
+import * as fs from "fs";
+import * as path from "path";
+import { v4 as uuidv4 } from "uuid";
 
 // Load environment variables
 dotenv.config();
@@ -65,7 +68,12 @@ const tools: Tool[] = [
     description: "List all projects in the Azure DevOps organization",
     inputSchema: {
       type: "object",
-      properties: {},
+      properties: {
+        top: {
+          type: "number",
+          description: "The maximum number of projects to return (optional)",
+        },
+      },
     },
   },
   {
@@ -123,12 +131,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "get_work_item": {
         const witApi: IWorkItemTrackingApi = await connection.getWorkItemTrackingApi();
         const workItem: WorkItem = await witApi.getWorkItem(args.id as number);
-        
+        const filePath = saveJsonToFile(`workitem_${args.id}`, workItem);
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(workItem, null, 2),
+              text: `Raw JSON saved at: ${filePath}`,
             },
           ],
         };
@@ -136,29 +144,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "query_work_items": {
         const witApi: IWorkItemTrackingApi = await connection.getWorkItemTrackingApi();
-        const wiql = {
-          query: args.wiql as string,
-        };
-        
-        const queryResult = await witApi.queryByWiql(wiql, {
-          project: args.project as string,
-        });
-        
-        // Get full work item details if IDs are returned
+        const wiql = { query: args.wiql as string };
+        const queryResult = await witApi.queryByWiql(wiql, { project: args.project as string });
         if (queryResult.workItems && queryResult.workItems.length > 0) {
           const ids = queryResult.workItems.map(wi => wi.id!);
           const workItems = await witApi.getWorkItems(ids);
-          
+          const filePath = saveJsonToFile("query_work_items", workItems);
           return {
             content: [
               {
                 type: "text",
-                text: JSON.stringify(workItems, null, 2),
+                text: `Raw JSON saved at: ${filePath}`,
               },
             ],
           };
         }
-        
         return {
           content: [
             {
@@ -171,13 +171,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "list_projects": {
         const coreApi = await connection.getCoreApi();
-        const projects = await coreApi.getProjects();
-        
+        const top = args.top || undefined;
+        const projects = await coreApi.getProjects({ top });
+        const filePath = saveJsonToFile("list_projects", projects);
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(projects, null, 2),
+              text: `Raw JSON saved at: ${filePath}`,
             },
           ],
         };
@@ -186,12 +187,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "get_project_teams": {
         const coreApi = await connection.getCoreApi();
         const teams = await coreApi.getTeams(args.projectId as string);
-        
+        const filePath = saveJsonToFile(`project_teams_${args.projectId}`, teams);
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(teams, null, 2),
+              text: `Raw JSON saved at: ${filePath}`,
             },
           ],
         };
@@ -232,3 +233,12 @@ main().catch((error) => {
   console.error("Fatal error:", error);
   process.exit(1);
 });
+
+function saveJsonToFile(prefix: string, data: any) {
+  const outDir = path.join(process.cwd(), "mcp-raw-json");
+  if (!fs.existsSync(outDir)) fs.mkdirSync(outDir);
+  const fileName = `${prefix}_${uuidv4()}.json`;
+  const filePath = path.join(outDir, fileName);
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  return filePath;
+}
