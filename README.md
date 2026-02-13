@@ -178,7 +178,7 @@ Get detailed information about a single work item.
 
 **Parameters:**
 - `id` (number, required): The work item ID
-- `project` (string, required): The project name
+- `project` (string, optional): The project name (not required since work item IDs are globally unique)
 - `expand` (string, optional): Expand options (None, Relations, Fields, Links, All)
 
 ---

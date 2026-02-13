@@ -110,14 +110,14 @@ const tools: Tool[] = [
         },
         project: {
           type: "string",
-          description: "The project name",
+          description: "The project name (optional, work item IDs are globally unique)",
         },
         expand: {
           type: "string",
           description: "Expand options (None, Relations, Fields, Links, All)",
         },
       },
-      required: ["id", "project"],
+      required: ["id"],
     },
   },
   {
@@ -749,9 +749,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       // ============ WORK ITEM HANDLERS ============
       case "mcp_ado_wit_get_work_item": {
-        if (!args.id || !args.project) {
+        if (!args.id) {
           return {
-            content: [{ type: "text", text: "Missing required parameters: id and project" }],
+            content: [{ type: "text", text: "Missing required parameter: id" }],
             isError: true,
           };
         }
