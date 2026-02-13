@@ -14,6 +14,25 @@ import * as dotenv from "dotenv";
 // Load environment variables
 dotenv.config();
 
+// Helper function to escape WIQL string values to prevent injection
+function escapeWiqlString(value: string): string {
+  // Escape single quotes by doubling them (WIQL standard)
+  return value.replace(/'/g, "''");
+}
+
+// Helper function to format date consistently
+function formatDate(dateString: string | undefined): string {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toISOString().split('T')[0]; // Returns YYYY-MM-DD
+}
+
+// Helper function to safely truncate and escape text for markdown tables
+function sanitizeTableCell(text: string | undefined, maxLength: number = 50): string {
+  if (!text) return '';
+  return text.replace(/\|/g, '\\|').replace(/\n/g, ' ').substring(0, maxLength);
+}
+
 const AZURE_DEVOPS_ORG_URL = process.env.AZURE_DEVOPS_ORG_URL;
 const AZURE_DEVOPS_PAT = process.env.AZURE_DEVOPS_PAT;
 
@@ -82,6 +101,28 @@ const tools: Tool[] = [
       required: ["projectId"],
     },
   },
+  {
+    name: "get_my_work_items",
+    description: "Get all work items assigned to the current user (authenticated with PAT)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project: {
+          type: "string",
+          description: "Optional project name to filter work items by project",
+        },
+        state: {
+          type: "string",
+          description: "Optional state filter (e.g., 'Active', 'New', 'Resolved'). If not provided, returns all states.",
+        },
+        limit: {
+          type: "number",
+          description: "Maximum number of work items to return (default: 100, max: 200)",
+          default: 100,
+        },
+      },
+    },
+  },
 ];
 
 // Create MCP server
@@ -121,9 +162,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case "get_work_item": {
+        if (!args.id || typeof args.id !== 'number') {
+          return {
+            content: [{ type: "text", text: "Invalid or missing work item ID" }],
+            isError: true,
+          };
+        }
+
         const witApi: IWorkItemTrackingApi = await connection.getWorkItemTrackingApi();
         const workItem: WorkItem = await witApi.getWorkItem(args.id as number);
         
+        if (!workItem) {
+          return {
+            content: [{ type: "text", text: `Work item ${args.id} not found` }],
+            isError: true,
+          };
+        }
+
         const fields = workItem.fields || {};
         const formattedText = `# Work Item ${workItem.id}
 
@@ -133,8 +188,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 **Assigned To:** ${fields['System.AssignedTo']?.displayName || 'Unassigned'}
 **Priority:** ${fields['Microsoft.VSTS.Common.Priority'] || 'N/A'}
 **Created By:** ${fields['System.CreatedBy']?.displayName || 'N/A'}
-**Created Date:** ${fields['System.CreatedDate'] || 'N/A'}
-**Changed Date:** ${fields['System.ChangedDate'] || 'N/A'}
+**Created Date:** ${formatDate(fields['System.CreatedDate'])}
+**Changed Date:** ${formatDate(fields['System.ChangedDate'])}
 
 ## Description
 ${fields['System.Description'] || 'No description'}
@@ -156,6 +211,13 @@ ${fields['System.Tags'] || 'None'}
       }
 
       case "query_work_items": {
+        if (!args.wiql || typeof args.wiql !== 'string') {
+          return {
+            content: [{ type: "text", text: "Invalid or missing WIQL query" }],
+            isError: true,
+          };
+        }
+
         const witApi: IWorkItemTrackingApi = await connection.getWorkItemTrackingApi();
         const wiql = {
           query: args.wiql as string,
@@ -177,8 +239,9 @@ ${fields['System.Tags'] || 'None'}
           
           workItems.forEach(wi => {
             const f = wi.fields || {};
-            const title = (f['System.Title'] || '').replace(/\|/g, '\\|').substring(0, 50);
-            output += `| ${wi.id} | ${f['System.WorkItemType'] || ''} | ${title} | ${f['System.State'] || ''} | ${f['System.AssignedTo']?.displayName || 'Unassigned'} |\n`;
+            const title = sanitizeTableCell(f['System.Title'], 50);
+            const assignedTo = f['System.AssignedTo']?.displayName || 'Unassigned';
+            output += `| ${wi.id} | ${f['System.WorkItemType'] || ''} | ${title} | ${f['System.State'] || ''} | ${assignedTo} |\n`;
           });
           
           return {
@@ -227,6 +290,13 @@ ${fields['System.Tags'] || 'None'}
       }
 
       case "get_project_teams": {
+        if (!args.projectId || typeof args.projectId !== 'string') {
+          return {
+            content: [{ type: "text", text: "Invalid or missing project ID" }],
+            isError: true,
+          };
+        }
+
         const coreApi = await connection.getCoreApi();
         const teams = await coreApi.getTeams(args.projectId as string);
         
@@ -244,6 +314,76 @@ ${fields['System.Tags'] || 'None'}
             {
               type: "text",
               text: output,
+            },
+          ],
+        };
+      }
+
+      case "get_my_work_items": {
+        const witApi: IWorkItemTrackingApi = await connection.getWorkItemTrackingApi();
+        
+        // Validate and sanitize limit
+        let limit = 100; // default
+        if (args.limit) {
+          limit = Math.min(Math.max(1, Number(args.limit) || 100), 200); // Clamp between 1 and 200
+        }
+
+        // Build WIQL query to get work items assigned to current user
+        let wiqlQuery = "SELECT [System.Id], [System.Title], [System.State], [System.WorkItemType], [System.AssignedTo], [System.ChangedDate], [System.TeamProject] FROM WorkItems WHERE [System.AssignedTo] = @Me";
+        
+        // Add project filter if provided (with proper escaping to prevent WIQL injection)
+        if (args.project && typeof args.project === 'string') {
+          const escapedProject = escapeWiqlString(args.project);
+          wiqlQuery += ` AND [System.TeamProject] = '${escapedProject}'`;
+        }
+        
+        // Add state filter if provided (with proper escaping to prevent WIQL injection)
+        if (args.state && typeof args.state === 'string') {
+          const escapedState = escapeWiqlString(args.state);
+          wiqlQuery += ` AND [System.State] = '${escapedState}'`;
+        }
+        
+        // Order by changed date descending
+        wiqlQuery += " ORDER BY [System.ChangedDate] DESC";
+        
+        const wiql = { query: wiqlQuery };
+        const queryResult = await witApi.queryByWiql(wiql);
+        
+        // Get full work item details if IDs are returned
+        if (queryResult.workItems && queryResult.workItems.length > 0) {
+          // Apply limit to number of work items to retrieve
+          const ids = queryResult.workItems.slice(0, limit).map(wi => wi.id!);
+          const workItems = await witApi.getWorkItems(ids);
+          
+          // Format as markdown
+          const totalFound = queryResult.workItems.length;
+          const showing = workItems.length;
+          let output = `# My Work Items\n\nFound ${totalFound} work items${totalFound > limit ? ` (showing ${showing})` : ''}:\n\n`;
+          output += '| ID | Type | Title | State | Project | Changed Date |\n';
+          output += '|---|---|---|---|---|---|\n';
+          
+          workItems.forEach(wi => {
+            const f = wi.fields || {};
+            const title = sanitizeTableCell(f['System.Title'], 40);
+            const changedDate = formatDate(f['System.ChangedDate']);
+            output += `| ${wi.id} | ${f['System.WorkItemType'] || ''} | ${title} | ${f['System.State'] || ''} | ${f['System.TeamProject'] || ''} | ${changedDate} |\n`;
+          });
+          
+          return {
+            content: [
+              {
+                type: "text",
+                text: output,
+              },
+            ],
+          };
+        }
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: "No work items found assigned to you.",
             },
           ],
         };
