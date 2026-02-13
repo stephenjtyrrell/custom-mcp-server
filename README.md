@@ -4,12 +4,52 @@ A Model Context Protocol (MCP) server that enables seamless interaction with Azu
 
 ## ✨ Features
 
-- 🔍 **Get Work Item** - Retrieve detailed information about specific work items
-- 📋 **Get My Work Items** - View all work items assigned to you with filtering options
-- 🔎 **Query Work Items** - Execute custom WIQL queries to find work items
-- 📁 **List Projects** - Browse all projects in your organization
-- 👥 **Get Project Teams** - View teams within specific projects
-- 🔒 **Security First** - Built-in WIQL injection prevention and input validation
+Comprehensive Azure DevOps integration with 25+ tools across multiple categories:
+
+### 🏢 Core API (2 tools)
+- **List Projects** - Browse all projects in your organization
+- **List Project Teams** - View teams within specific projects
+
+### 📋 Work Items (9 tools)
+- **Get Work Item** - Retrieve detailed information about specific work items
+- **Get Work Items Batch** - Retrieve multiple work items by IDs
+- **Create Work Item** - Create new work items (tasks, bugs, user stories, etc.)
+- **Update Work Item** - Modify existing work items
+- **My Work Items** - View all work items assigned to you with filtering
+- **Add Comment** - Add comments to work items
+- **List Comments** - View all comments on a work item
+- **Execute Query** - Run saved work item queries by ID
+
+### 📦 Repositories (7 tools)
+- **List Repositories** - Browse all repositories in a project
+- **Get Repository** - Get detailed information about a specific repository
+- **List Branches** - View all branches in a repository
+- **Get Branch** - Get details about a specific branch
+- **List Pull Requests** - Browse pull requests with filtering
+- **Get Pull Request** - Get detailed information about a specific PR
+- **Create Pull Request** - Create new pull requests
+
+### 🚀 Pipelines & Builds (3 tools)
+- **List Builds** - Browse builds with status and result filtering
+- **Get Build Status** - Check the status of a specific build
+- **List Build Definitions** - View available build/pipeline definitions
+
+### 📚 Wiki (3 tools)
+- **List Wikis** - Browse wikis in organization or project
+- **Get Page Content** - Retrieve wiki page content
+- **List Pages** - View all pages in a wiki
+
+### 🔍 Search (1 tool)
+- **Search Work Items** - Full-text search across work items
+
+### ⏱️ Work & Iterations (2 tools)
+- **List Iterations** - View all iterations/sprints in a project
+- **List Team Iterations** - View iterations assigned to a specific team
+
+### 🔒 Security Features
+- Built-in WIQL injection prevention and input validation
+- Secure credential handling via environment variables
+- Result limits to prevent memory exhaustion
 
 ## 📋 Prerequisites
 
@@ -111,88 +151,281 @@ For any MCP-compatible client, use:
 
 ## 🛠️ Available Tools
 
-### `get_work_item`
-Retrieves detailed information about a specific work item.
+### Core API Tools
+
+#### `mcp_ado_core_list_projects`
+List all projects in the Azure DevOps organization.
+
+**Parameters:**
+- `stateFilter` (string, optional): Filter by state (all, wellFormed, deleting, new)
+- `top` (number, optional): Maximum number of projects to return
+
+---
+
+#### `mcp_ado_core_list_project_teams`
+List teams within a project.
+
+**Parameters:**
+- `project` (string, required): The project name or ID
+- `top` (number, optional): Maximum number of teams to return
+
+---
+
+### Work Item Tools
+
+#### `mcp_ado_wit_get_work_item`
+Get detailed information about a single work item.
 
 **Parameters:**
 - `id` (number, required): The work item ID
-
-**Example Response:**
-- Work item type, title, state, assigned to
-- Priority, creation date, change date
-- Description and tags
-- Direct link to work item
+- `project` (string, required): The project name
+- `expand` (string, optional): Expand options (None, Relations, Fields, Links, All)
 
 ---
 
-### `get_my_work_items`
-Get all work items assigned to the authenticated user (you).
+#### `mcp_ado_wit_get_work_items_batch_by_ids`
+Retrieve multiple work items in a single batch request.
+
+**Parameters:**
+- `ids` (array of numbers, required): Array of work item IDs
+- `project` (string, required): The project name
+- `fields` (array of strings, optional): Specific fields to return
+
+---
+
+#### `mcp_ado_wit_create_work_item`
+Create a new work item.
+
+**Parameters:**
+- `project` (string, required): The project name
+- `workItemType` (string, required): Type (e.g., 'Task', 'Bug', 'User Story')
+- `title` (string, required): Work item title
+- `description` (string, optional): Work item description
+- `assignedTo` (string, optional): User to assign to
+- `state` (string, optional): Initial state
+- `tags` (string, optional): Semicolon-separated tags
+
+---
+
+#### `mcp_ado_wit_update_work_item`
+Update an existing work item.
+
+**Parameters:**
+- `id` (number, required): The work item ID
+- `project` (string, required): The project name
+- `title` (string, optional): Updated title
+- `description` (string, optional): Updated description
+- `state` (string, optional): Updated state
+- `assignedTo` (string, optional): Updated assignee
+- `tags` (string, optional): Updated tags
+
+---
+
+#### `mcp_ado_wit_my_work_items`
+Get work items assigned to the current user.
+
+**Parameters:**
+- `project` (string, required): The project name
+- `state` (string, optional): State filter (e.g., 'Active', 'New')
+- `type` (string, optional): Work item type filter
+- `top` (number, optional): Maximum items to return (default: 100)
+
+---
+
+#### `mcp_ado_wit_add_work_item_comment`
+Add a comment to a work item.
+
+**Parameters:**
+- `project` (string, required): The project name
+- `workItemId` (number, required): The work item ID
+- `comment` (string, required): Comment text
+
+---
+
+#### `mcp_ado_wit_list_work_item_comments`
+List all comments on a work item.
+
+**Parameters:**
+- `project` (string, required): The project name
+- `workItemId` (number, required): The work item ID
+- `top` (number, optional): Maximum comments to return
+
+---
+
+#### `mcp_ado_wit_get_query_results_by_id`
+Execute a saved work item query and get results.
+
+**Parameters:**
+- `project` (string, required): The project name
+- `queryId` (string, required): The query ID (GUID)
+- `top` (number, optional): Maximum results to return
+
+---
+
+### Repository Tools
+
+#### `mcp_ado_repo_list_repos_by_project`
+List all repositories in a project.
+
+**Parameters:**
+- `project` (string, required): The project name or ID
+
+---
+
+#### `mcp_ado_repo_get_repo_by_name_or_id`
+Get detailed repository information.
+
+**Parameters:**
+- `project` (string, required): The project name
+- `repositoryNameOrId` (string, required): Repository name or ID
+
+---
+
+#### `mcp_ado_repo_list_branches_by_repo`
+List all branches in a repository.
+
+**Parameters:**
+- `repositoryId` (string, required): The repository ID
+- `project` (string, required): The project name
+
+---
+
+#### `mcp_ado_repo_get_branch_by_name`
+Get details of a specific branch.
+
+**Parameters:**
+- `repositoryId` (string, required): The repository ID
+- `branchName` (string, required): Branch name (e.g., 'main' or 'refs/heads/main')
+- `project` (string, required): The project name
+
+---
+
+#### `mcp_ado_repo_list_pull_requests_by_repo_or_project`
+List pull requests for a repository or project.
+
+**Parameters:**
+- `project` (string, required): The project name
+- `repositoryId` (string, optional): The repository ID
+- `status` (string, optional): PR status (active, completed, abandoned, all)
+- `targetRefName` (string, optional): Target branch filter
+- `top` (number, optional): Maximum PRs to return
+
+---
+
+#### `mcp_ado_repo_get_pull_request_by_id`
+Get detailed information about a pull request.
+
+**Parameters:**
+- `repositoryId` (string, required): The repository ID
+- `pullRequestId` (number, required): The pull request ID
+- `project` (string, required): The project name
+
+---
+
+#### `mcp_ado_repo_create_pull_request`
+Create a new pull request.
+
+**Parameters:**
+- `repositoryId` (string, required): The repository ID
+- `project` (string, required): The project name
+- `sourceRefName` (string, required): Source branch (e.g., 'refs/heads/feature')
+- `targetRefName` (string, required): Target branch (e.g., 'refs/heads/main')
+- `title` (string, required): PR title
+- `description` (string, optional): PR description
+- `isDraft` (boolean, optional): Create as draft PR
+
+---
+
+### Pipeline & Build Tools
+
+#### `mcp_ado_pipelines_get_builds`
+List builds for a project.
+
+**Parameters:**
+- `project` (string, required): The project name
+- `definitions` (array of numbers, optional): Filter by build definition IDs
+- `top` (number, optional): Maximum builds to return
+- `statusFilter` (string, optional): Status filter (all, cancelling, completed, inProgress, notStarted, postponed)
+- `resultFilter` (string, optional): Result filter (succeeded, partiallySucceeded, failed, canceled)
+
+---
+
+#### `mcp_ado_pipelines_get_build_status`
+Get status of a specific build.
+
+**Parameters:**
+- `project` (string, required): The project name
+- `buildId` (number, required): The build ID
+
+---
+
+#### `mcp_ado_pipelines_get_build_definitions`
+List build definitions in a project.
+
+**Parameters:**
+- `project` (string, required): The project name
+- `name` (string, optional): Filter by definition name
+- `top` (number, optional): Maximum definitions to return
+
+---
+
+### Wiki Tools
+
+#### `mcp_ado_wiki_list_wikis`
+List all wikis in the organization or project.
 
 **Parameters:**
 - `project` (string, optional): Filter by project name
-- `state` (string, optional): Filter by state (e.g., 'Active', 'New', 'Resolved', 'Closed')
-- `limit` (number, optional): Maximum items to return (default: 100, max: 200)
-
-**Example Usage:**
-```
-Get all my work items: {} (no parameters)
-Get active work items: {"state": "Active"}
-Get work in specific project: {"project": "MyProject"}
-Get top 50 recent items: {"limit": 50}
-```
-
-**Returns:** Markdown table with ID, Type, Title, State, Project, and Changed Date
 
 ---
 
-### `query_work_items`
-Execute custom WIQL (Work Item Query Language) queries.
+#### `mcp_ado_wiki_get_page_content`
+Get the content of a wiki page.
 
 **Parameters:**
-- `wiql` (string, required): The WIQL query
-- `project` (string, optional): Project context for the query
-
-**Example WIQL Queries:**
-```sql
--- Get all active bugs
-SELECT [System.Id], [System.Title] 
-FROM WorkItems 
-WHERE [System.State] = 'Active' 
-AND [System.WorkItemType] = 'Bug'
-
--- Get high priority items in a project
-SELECT [System.Id], [System.Title], [System.Priority]
-FROM WorkItems 
-WHERE [System.TeamProject] = 'MyProject'
-AND [Microsoft.VSTS.Common.Priority] <= 2
-ORDER BY [Microsoft.VSTS.Common.Priority] ASC
-
--- Get work items changed in last 7 days
-SELECT [System.Id], [System.Title], [System.ChangedDate]
-FROM WorkItems
-WHERE [System.ChangedDate] >= @Today - 7
-```
-
-**Returns:** Markdown table with ID, Type, Title, State, and Assigned To
+- `wikiIdentifier` (string, required): Wiki ID or name
+- `project` (string, required): The project name
+- `path` (string, required): Page path (e.g., '/page-name')
 
 ---
 
-### `list_projects`
-Lists all projects in your Azure DevOps organization.
-
-**Parameters:** None
-
-**Returns:** List of projects with ID, description, state, visibility, and URL
-
----
-
-### `get_project_teams`
-Gets all teams within a specific project.
+#### `mcp_ado_wiki_list_pages`
+List all pages in a wiki.
 
 **Parameters:**
-- `projectId` (string, required): The project ID or name
+- `wikiIdentifier` (string, required): Wiki ID or name
+- `project` (string, required): The project name
 
-**Returns:** List of teams with ID, description, and URL
+---
+
+### Search Tools
+
+#### `mcp_ado_search_workitem`
+Search work items by text.
+
+**Parameters:**
+- `searchText` (string, required): Text to search for
+- `project` (string, optional): Filter by project name
+- `top` (number, optional): Maximum results (default: 50)
+
+---
+
+### Work & Iteration Tools
+
+#### `mcp_ado_work_list_iterations`
+List all iterations in a project.
+
+**Parameters:**
+- `project` (string, required): The project name
+
+---
+
+#### `mcp_ado_work_list_team_iterations`
+List iterations for a specific team.
+
+**Parameters:**
+- `project` (string, required): The project name
+- `team` (string, required): The team name or ID
 
 ## 🔒 Security Features
 
