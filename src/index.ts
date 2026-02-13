@@ -607,6 +607,88 @@ const tools: Tool[] = [
 
   // ============ SEARCH TOOLS ============
   {
+    name: "mcp_ado_search_code",
+    description: "Search Azure DevOps Repositories for a given search text",
+    inputSchema: {
+      type: "object",
+      properties: {
+        searchText: {
+          type: "string",
+          description: "Keywords to search for in code repositories",
+        },
+        project: {
+          type: "array",
+          items: { type: "string" },
+          description: "Filter by projects",
+        },
+        repository: {
+          type: "array",
+          items: { type: "string" },
+          description: "Filter by repositories",
+        },
+        path: {
+          type: "array",
+          items: { type: "string" },
+          description: "Filter by paths",
+        },
+        branch: {
+          type: "array",
+          items: { type: "string" },
+          description: "Filter by branches",
+        },
+        includeFacets: {
+          type: "boolean",
+          description: "Include facets in the search results (default: false)",
+        },
+        skip: {
+          type: "number",
+          description: "Number of results to skip (default: 0)",
+        },
+        top: {
+          type: "number",
+          description: "Maximum number of results to return (default: 5)",
+        },
+      },
+      required: ["searchText"],
+    },
+  },
+  {
+    name: "mcp_ado_search_wiki",
+    description: "Search Azure DevOps Wiki for a given search text",
+    inputSchema: {
+      type: "object",
+      properties: {
+        searchText: {
+          type: "string",
+          description: "Keywords to search for in wiki pages",
+        },
+        project: {
+          type: "array",
+          items: { type: "string" },
+          description: "Filter by projects",
+        },
+        wiki: {
+          type: "array",
+          items: { type: "string" },
+          description: "Filter by wiki names",
+        },
+        includeFacets: {
+          type: "boolean",
+          description: "Include facets in the search results (default: false)",
+        },
+        skip: {
+          type: "number",
+          description: "Number of results to skip (default: 0)",
+        },
+        top: {
+          type: "number",
+          description: "Maximum number of results to return (default: 10)",
+        },
+      },
+      required: ["searchText"],
+    },
+  },
+  {
     name: "mcp_ado_search_workitem",
     description: "Search work items by text",
     inputSchema: {
@@ -1444,6 +1526,187 @@ ${workItem._links?.html?.href || 'N/A'}`;
       }
 
       // ============ SEARCH HANDLERS ============
+      case "mcp_ado_search_code": {
+        if (!args.searchText) {
+          return {
+            content: [{ type: "text", text: "Missing required parameter: searchText" }],
+            isError: true,
+          };
+        }
+
+        try {
+          // Extract organization name from URL
+          const orgUrl = new URL(AZURE_DEVOPS_ORG_URL);
+          const orgName = orgUrl.pathname.split('/').filter(Boolean)[0];
+          const apiVersion = "7.1-preview.1";
+          
+          const url = `https://almsearch.dev.azure.com/${orgName}/_apis/search/codesearchresults?api-version=${apiVersion}`;
+
+          const requestBody: any = {
+            searchText: args.searchText,
+            includeFacets: args.includeFacets || false,
+            $skip: args.skip || 0,
+            $top: args.top || 5,
+          };
+
+          const filters: Record<string, string[]> = {};
+          if (args.project && Array.isArray(args.project) && args.project.length > 0) {
+            filters.Project = args.project as string[];
+          }
+          if (args.repository && Array.isArray(args.repository) && args.repository.length > 0) {
+            filters.Repository = args.repository as string[];
+          }
+          if (args.path && Array.isArray(args.path) && args.path.length > 0) {
+            filters.Path = args.path as string[];
+          }
+          if (args.branch && Array.isArray(args.branch) && args.branch.length > 0) {
+            filters.Branch = args.branch as string[];
+          }
+
+          if (Object.keys(filters).length > 0) {
+            requestBody.filters = filters;
+          }
+
+          const response = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Basic ${Buffer.from(`:${AZURE_DEVOPS_PAT}`).toString('base64')}`,
+            },
+            body: JSON.stringify(requestBody),
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            return {
+              content: [{ type: "text", text: `Azure DevOps Code Search API error: ${response.status} ${response.statusText}\n${errorText}` }],
+              isError: true,
+            };
+          }
+
+          const resultText = await response.text();
+          const resultJson = JSON.parse(resultText);
+
+          // Format the results for better readability
+          let output = `# Code Search Results\n\n`;
+          output += `Search query: "${args.searchText}"\n\n`;
+          
+          if (resultJson.count > 0) {
+            output += `Found ${resultJson.count} results:\n\n`;
+            
+            if (resultJson.results) {
+              resultJson.results.forEach((result: any, index: number) => {
+                output += `## Result ${index + 1}\n`;
+                output += `**File:** ${result.path || 'N/A'}\n`;
+                output += `**Repository:** ${result.repository?.name || 'N/A'}\n`;
+                output += `**Project:** ${result.project?.name || 'N/A'}\n`;
+                if (result.contentId) {
+                  output += `**Content ID:** ${result.contentId}\n`;
+                }
+                output += `\n`;
+              });
+            }
+          } else {
+            output += `No results found.\n`;
+          }
+
+          return { content: [{ type: "text", text: output }] };
+        } catch (error) {
+          return {
+            content: [{ type: "text", text: `Error searching code: ${error instanceof Error ? error.message : String(error)}` }],
+            isError: true,
+          };
+        }
+      }
+
+      case "mcp_ado_search_wiki": {
+        if (!args.searchText) {
+          return {
+            content: [{ type: "text", text: "Missing required parameter: searchText" }],
+            isError: true,
+          };
+        }
+
+        try {
+          // Extract organization name from URL
+          const orgUrl = new URL(AZURE_DEVOPS_ORG_URL);
+          const orgName = orgUrl.pathname.split('/').filter(Boolean)[0];
+          const apiVersion = "7.1-preview.1";
+          
+          const url = `https://almsearch.dev.azure.com/${orgName}/_apis/search/wikisearchresults?api-version=${apiVersion}`;
+
+          const requestBody: any = {
+            searchText: args.searchText,
+            includeFacets: args.includeFacets || false,
+            $skip: args.skip || 0,
+            $top: args.top || 10,
+          };
+
+          const filters: Record<string, string[]> = {};
+          if (args.project && Array.isArray(args.project) && args.project.length > 0) {
+            filters.Project = args.project as string[];
+          }
+          if (args.wiki && Array.isArray(args.wiki) && args.wiki.length > 0) {
+            filters.Wiki = args.wiki as string[];
+          }
+
+          if (Object.keys(filters).length > 0) {
+            requestBody.filters = filters;
+          }
+
+          const response = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Basic ${Buffer.from(`:${AZURE_DEVOPS_PAT}`).toString('base64')}`,
+            },
+            body: JSON.stringify(requestBody),
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            return {
+              content: [{ type: "text", text: `Azure DevOps Wiki Search API error: ${response.status} ${response.statusText}\n${errorText}` }],
+              isError: true,
+            };
+          }
+
+          const resultText = await response.text();
+          const resultJson = JSON.parse(resultText);
+
+          // Format the results for better readability
+          let output = `# Wiki Search Results\n\n`;
+          output += `Search query: "${args.searchText}"\n\n`;
+          
+          if (resultJson.count > 0) {
+            output += `Found ${resultJson.count} results:\n\n`;
+            
+            if (resultJson.results) {
+              resultJson.results.forEach((result: any, index: number) => {
+                output += `## Result ${index + 1}\n`;
+                output += `**Title:** ${result.fileName || 'N/A'}\n`;
+                output += `**Path:** ${result.path || 'N/A'}\n`;
+                output += `**Wiki:** ${result.wiki?.name || 'N/A'}\n`;
+                output += `**Project:** ${result.project?.name || 'N/A'}\n`;
+                if (result.hitHighlights) {
+                  output += `**Preview:** ${result.hitHighlights}\n`;
+                }
+                output += `\n`;
+              });
+            }
+          } else {
+            output += `No results found.\n`;
+          }
+
+          return { content: [{ type: "text", text: output }] };
+        } catch (error) {
+          return {
+            content: [{ type: "text", text: `Error searching wiki: ${error instanceof Error ? error.message : String(error)}` }],
+            isError: true,
+          };
+        }
+      }
+
       case "mcp_ado_search_workitem": {
         if (!args.searchText) {
           return {
