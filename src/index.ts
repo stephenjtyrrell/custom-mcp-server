@@ -124,11 +124,32 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const witApi: IWorkItemTrackingApi = await connection.getWorkItemTrackingApi();
         const workItem: WorkItem = await witApi.getWorkItem(args.id as number);
         
+        const fields = workItem.fields || {};
+        const formattedText = `# Work Item ${workItem.id}
+
+**Type:** ${fields['System.WorkItemType'] || 'N/A'}
+**Title:** ${fields['System.Title'] || 'N/A'}
+**State:** ${fields['System.State'] || 'N/A'}
+**Assigned To:** ${fields['System.AssignedTo']?.displayName || 'Unassigned'}
+**Priority:** ${fields['Microsoft.VSTS.Common.Priority'] || 'N/A'}
+**Created By:** ${fields['System.CreatedBy']?.displayName || 'N/A'}
+**Created Date:** ${fields['System.CreatedDate'] || 'N/A'}
+**Changed Date:** ${fields['System.ChangedDate'] || 'N/A'}
+
+## Description
+${fields['System.Description'] || 'No description'}
+
+## Tags
+${fields['System.Tags'] || 'None'}
+
+## Links
+**URL:** ${workItem._links?.html?.href || 'N/A'}`;
+        
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(workItem, null, 2),
+              text: formattedText,
             },
           ],
         };
@@ -149,11 +170,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           const ids = queryResult.workItems.map(wi => wi.id!);
           const workItems = await witApi.getWorkItems(ids);
           
+          // Format as markdown table
+          let output = `# Query Results\n\nFound ${workItems.length} work items:\n\n`;
+          output += '| ID | Type | Title | State | Assigned To |\n';
+          output += '|---|---|---|---|---|\n';
+          
+          workItems.forEach(wi => {
+            const f = wi.fields || {};
+            const title = (f['System.Title'] || '').replace(/\|/g, '\\|').substring(0, 50);
+            output += `| ${wi.id} | ${f['System.WorkItemType'] || ''} | ${title} | ${f['System.State'] || ''} | ${f['System.AssignedTo']?.displayName || 'Unassigned'} |\n`;
+          });
+          
           return {
             content: [
               {
                 type: "text",
-                text: JSON.stringify(workItems, null, 2),
+                text: output,
               },
             ],
           };
@@ -173,11 +205,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const coreApi = await connection.getCoreApi();
         const projects = await coreApi.getProjects();
         
+        let output = `# Azure DevOps Projects\n\nFound ${projects.length} projects:\n\n`;
+        
+        projects.forEach(project => {
+          output += `## ${project.name}\n`;
+          output += `- **ID:** ${project.id}\n`;
+          output += `- **Description:** ${project.description || 'No description'}\n`;
+          output += `- **State:** ${project.state}\n`;
+          output += `- **Visibility:** ${project.visibility}\n`;
+          output += `- **URL:** ${project.url}\n\n`;
+        });
+        
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(projects, null, 2),
+              text: output,
             },
           ],
         };
@@ -187,11 +230,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const coreApi = await connection.getCoreApi();
         const teams = await coreApi.getTeams(args.projectId as string);
         
+        let output = `# Project Teams\n\nFound ${teams.length} teams in project:\n\n`;
+        
+        teams.forEach(team => {
+          output += `## ${team.name}\n`;
+          output += `- **ID:** ${team.id}\n`;
+          output += `- **Description:** ${team.description || 'No description'}\n`;
+          output += `- **URL:** ${team.url}\n\n`;
+        });
+        
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(teams, null, 2),
+              text: output,
             },
           ],
         };
