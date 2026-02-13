@@ -228,7 +228,7 @@ const tools: Tool[] = [
       properties: {
         project: {
           type: "string",
-          description: "Project name to filter by",
+          description: "Project name to filter by (optional)",
         },
         state: {
           type: "string",
@@ -243,7 +243,6 @@ const tools: Tool[] = [
           description: "Maximum number of items to return (default: 100)",
         },
       },
-      required: ["project"],
     },
   },
   {
@@ -1028,13 +1027,6 @@ ${workItem._links?.html?.href || 'N/A'}`;
       }
 
       case "mcp_ado_wit_my_work_items": {
-        if (!args.project) {
-          return {
-            content: [{ type: "text", text: "Missing required parameter: project" }],
-            isError: true,
-          };
-        }
-
         const witApi: IWorkItemTrackingApi = await connection.getWorkItemTrackingApi();
         const top = Math.min(args.top as number || 100, 200);
         

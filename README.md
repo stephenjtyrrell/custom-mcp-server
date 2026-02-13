@@ -229,10 +229,10 @@ Update an existing work item.
 ---
 
 #### `mcp_ado_wit_my_work_items`
-Get work items assigned to the current user.
+Get work items assigned to the current user across all projects or filtered by a specific project.
 
 **Parameters:**
-- `project` (string, required): The project name
+- `project` (string, optional): Filter by project name
 - `state` (string, optional): State filter (e.g., 'Active', 'New')
 - `type` (string, optional): Work item type filter
 - `top` (number, optional): Maximum items to return (default: 100)
