@@ -23,7 +23,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
     "azure-devops-node-api": "^15.1.2",
-    "dotenv": "^16.4.5"
+    "dotenv": "^17.3.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
