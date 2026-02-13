@@ -82,6 +82,23 @@ const tools: Tool[] = [
       required: ["projectId"],
     },
   },
+  {
+    name: "get_my_work_items",
+    description: "Get all work items assigned to the current user (authenticated with PAT)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project: {
+          type: "string",
+          description: "Optional project name to filter work items by project",
+        },
+        state: {
+          type: "string",
+          description: "Optional state filter (e.g., 'Active', 'New', 'Resolved'). If not provided, returns all states.",
+        },
+      },
+    },
+  },
 ];
 
 // Create MCP server
@@ -244,6 +261,65 @@ ${fields['System.Tags'] || 'None'}
             {
               type: "text",
               text: output,
+            },
+          ],
+        };
+      }
+
+      case "get_my_work_items": {
+        const witApi: IWorkItemTrackingApi = await connection.getWorkItemTrackingApi();
+        
+        // Build WIQL query to get work items assigned to current user
+        let wiqlQuery = "SELECT [System.Id], [System.Title], [System.State], [System.WorkItemType], [System.AssignedTo], [System.ChangedDate] FROM WorkItems WHERE [System.AssignedTo] = @Me";
+        
+        // Add project filter if provided
+        if (args.project) {
+          wiqlQuery += ` AND [System.TeamProject] = '${args.project}'`;
+        }
+        
+        // Add state filter if provided
+        if (args.state) {
+          wiqlQuery += ` AND [System.State] = '${args.state}'`;
+        }
+        
+        // Order by changed date descending
+        wiqlQuery += " ORDER BY [System.ChangedDate] DESC";
+        
+        const wiql = { query: wiqlQuery };
+        const queryResult = await witApi.queryByWiql(wiql);
+        
+        // Get full work item details if IDs are returned
+        if (queryResult.workItems && queryResult.workItems.length > 0) {
+          const ids = queryResult.workItems.map(wi => wi.id!);
+          const workItems = await witApi.getWorkItems(ids);
+          
+          // Format as markdown
+          let output = `# My Work Items\n\nFound ${workItems.length} work items assigned to you:\n\n`;
+          output += '| ID | Type | Title | State | Project | Changed Date |\n';
+          output += '|---|---|---|---|---|---|\n';
+          
+          workItems.forEach(wi => {
+            const f = wi.fields || {};
+            const title = (f['System.Title'] || '').replace(/\|/g, '\\|').substring(0, 40);
+            const changedDate = f['System.ChangedDate'] ? new Date(f['System.ChangedDate']).toLocaleDateString() : '';
+            output += `| ${wi.id} | ${f['System.WorkItemType'] || ''} | ${title} | ${f['System.State'] || ''} | ${f['System.TeamProject'] || ''} | ${changedDate} |\n`;
+          });
+          
+          return {
+            content: [
+              {
+                type: "text",
+                text: output,
+              },
+            ],
+          };
+        }
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: "No work items found assigned to you.",
             },
           ],
         };
