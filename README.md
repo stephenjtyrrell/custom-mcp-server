@@ -4,7 +4,7 @@ A Model Context Protocol (MCP) server that enables seamless interaction with Azu
 
 ## ✨ Features
 
-Comprehensive Azure DevOps integration with 25+ tools across multiple categories:
+Comprehensive Azure DevOps integration with 27+ tools across multiple categories:
 
 ### 🏢 Core API (2 tools)
 - **List Projects** - Browse all projects in your organization
@@ -39,7 +39,9 @@ Comprehensive Azure DevOps integration with 25+ tools across multiple categories
 - **Get Page Content** - Retrieve wiki page content
 - **List Pages** - View all pages in a wiki
 
-### 🔍 Search (1 tool)
+### 🔍 Search (3 tools)
+- **Search Code** - Search for code across repositories with filtering
+- **Search Wiki** - Search wiki pages by keywords and content
 - **Search Work Items** - Full-text search across work items
 
 ### ⏱️ Work & Iterations (2 tools)
@@ -57,9 +59,10 @@ Comprehensive Azure DevOps integration with 25+ tools across multiple categories
 - Access to an Azure DevOps on-premise server
 - Personal Access Token (PAT) with the following permissions:
   - **Work Items (Read & Write)** - Required for viewing and modifying work items, adding comments
-  - **Code (Read & Write)** - Required for repository and pull request operations
+  - **Code (Read & Write)** - Required for repository and pull request operations, code search
   - **Build (Read)** - Required for viewing builds and pipelines
   - **Project and Team (Read)** - Required for listing projects and teams
+  - **Wiki (Read)** - Required for wiki search operations
   
   *Note: You can create a PAT with only Read permissions if you only need to query/view data.*
 
@@ -226,10 +229,10 @@ Update an existing work item.
 ---
 
 #### `mcp_ado_wit_my_work_items`
-Get work items assigned to the current user.
+Get work items assigned to the current user across all projects or filtered by a specific project.
 
 **Parameters:**
-- `project` (string, required): The project name
+- `project` (string, optional): Filter by project name
 - `state` (string, optional): State filter (e.g., 'Active', 'New')
 - `type` (string, optional): Work item type filter
 - `top` (number, optional): Maximum items to return (default: 100)
@@ -404,6 +407,43 @@ List all pages in a wiki.
 
 ### Search Tools
 
+> **⚠️ Important for On-Premise Installations:**  
+> Code and Wiki search require the **Code Search** extension to be installed on your Azure DevOps Server.  
+> If you encounter 404 or API not found errors, verify that:
+> - The Code Search extension is installed in your organization
+> - The extension is enabled for your projects
+> - Your PAT has the appropriate search permissions
+> 
+> See [Installing Code Search](https://learn.microsoft.com/en-us/azure/devops/project/search/install-configure-search) for setup instructions.
+
+#### `mcp_ado_search_code`
+Search for code across Azure DevOps repositories.
+
+**Parameters:**
+- `searchText` (string, required): Keywords to search for in code repositories
+- `project` (array of strings, optional): Filter by project names
+- `repository` (array of strings, optional): Filter by repository names
+- `path` (array of strings, optional): Filter by file paths
+- `branch` (array of strings, optional): Filter by branch names
+- `includeFacets` (boolean, optional): Include facets in results (default: false)
+- `skip` (number, optional): Number of results to skip for pagination (default: 0)
+- `top` (number, optional): Maximum results to return (default: 5)
+
+---
+
+#### `mcp_ado_search_wiki`
+Search Azure DevOps wiki pages by keywords.
+
+**Parameters:**
+- `searchText` (string, required): Keywords to search for in wiki pages
+- `project` (array of strings, optional): Filter by project names
+- `wiki` (array of strings, optional): Filter by wiki names
+- `includeFacets` (boolean, optional): Include facets in results (default: false)
+- `skip` (number, optional): Number of results to skip for pagination (default: 0)
+- `top` (number, optional): Maximum results to return (default: 10)
+
+---
+
 #### `mcp_ado_search_workitem`
 Search work items by text.
 
@@ -521,6 +561,29 @@ export NODE_TLS_REJECT_UNAUTHORIZED=0
 1. **Verify work item exists**: Check the ID in Azure DevOps web interface
 2. **Check permissions**: Ensure your PAT has access to the project
 3. **WIQL syntax**: For custom queries, verify WIQL syntax is correct
+
+### Search API Issues
+
+If code or wiki search fails:
+
+1. **Check extension installation**: 
+   - Code Search extension must be installed on your Azure DevOps Server
+   - Go to Organization Settings > Extensions to verify installation
+   - See [Install Code Search](https://learn.microsoft.com/en-us/azure/devops/project/search/install-configure-search)
+
+2. **Verify API availability**:
+   - Test the endpoint manually: `curl -u :YOUR_PAT https://your-server.com/your-org/_apis/search/codesearchresults?api-version=7.1-preview.1`
+   - 404 errors typically mean the Search extension is not installed
+   - 403 errors indicate permission issues
+
+3. **Check PAT permissions**:
+   - Ensure your PAT has "Code (Read)" permissions for code search
+   - Ensure your PAT has "Wiki (Read)" permissions for wiki search
+
+4. **API version compatibility**:
+   - The search API uses version `7.1-preview.1`
+   - Older on-premise servers may require different API versions
+   - Check your server version and Azure DevOps API compatibility
 
 ## 📚 Resources
 
