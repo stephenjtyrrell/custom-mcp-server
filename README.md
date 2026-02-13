@@ -407,6 +407,15 @@ List all pages in a wiki.
 
 ### Search Tools
 
+> **⚠️ Important for On-Premise Installations:**  
+> Code and Wiki search require the **Code Search** extension to be installed on your Azure DevOps Server.  
+> If you encounter 404 or API not found errors, verify that:
+> - The Code Search extension is installed in your organization
+> - The extension is enabled for your projects
+> - Your PAT has the appropriate search permissions
+> 
+> See [Installing Code Search](https://learn.microsoft.com/en-us/azure/devops/project/search/install-configure-search) for setup instructions.
+
 #### `mcp_ado_search_code`
 Search for code across Azure DevOps repositories.
 
@@ -552,6 +561,29 @@ export NODE_TLS_REJECT_UNAUTHORIZED=0
 1. **Verify work item exists**: Check the ID in Azure DevOps web interface
 2. **Check permissions**: Ensure your PAT has access to the project
 3. **WIQL syntax**: For custom queries, verify WIQL syntax is correct
+
+### Search API Issues
+
+If code or wiki search fails:
+
+1. **Check extension installation**: 
+   - Code Search extension must be installed on your Azure DevOps Server
+   - Go to Organization Settings > Extensions to verify installation
+   - See [Install Code Search](https://learn.microsoft.com/en-us/azure/devops/project/search/install-configure-search)
+
+2. **Verify API availability**:
+   - Test the endpoint manually: `curl -u :YOUR_PAT https://your-server.com/your-org/_apis/search/codesearchresults?api-version=7.1-preview.1`
+   - 404 errors typically mean the Search extension is not installed
+   - 403 errors indicate permission issues
+
+3. **Check PAT permissions**:
+   - Ensure your PAT has "Code (Read)" permissions for code search
+   - Ensure your PAT has "Wiki (Read)" permissions for wiki search
+
+4. **API version compatibility**:
+   - The search API uses version `7.1-preview.1`
+   - Older on-premise servers may require different API versions
+   - Check your server version and Azure DevOps API compatibility
 
 ## 📚 Resources
 

@@ -1527,12 +1527,12 @@ ${workItem._links?.html?.href || 'N/A'}`;
         }
 
         try {
-          // Extract organization name from URL
-          const orgUrl = new URL(AZURE_DEVOPS_ORG_URL);
-          const orgName = orgUrl.pathname.split('/').filter(Boolean)[0];
+          // For on-premise servers, use the organization URL directly
+          // For cloud (dev.azure.com), it would use almsearch.dev.azure.com
           const apiVersion = "7.1-preview.1";
           
-          const url = `https://almsearch.dev.azure.com/${orgName}/_apis/search/codesearchresults?api-version=${apiVersion}`;
+          // Use the organization URL for on-premise installations
+          const url = `${AZURE_DEVOPS_ORG_URL}/_apis/search/codesearchresults?api-version=${apiVersion}`;
 
           const requestBody: any = {
             searchText: args.searchText,
@@ -1571,7 +1571,7 @@ ${workItem._links?.html?.href || 'N/A'}`;
           if (!response.ok) {
             const errorText = await response.text();
             return {
-              content: [{ type: "text", text: `Azure DevOps Code Search API error: ${response.status} ${response.statusText}\n${errorText}` }],
+              content: [{ type: "text", text: `Azure DevOps Code Search API error: ${response.status} ${response.statusText}\nURL: ${url}\nError: ${errorText}` }],
               isError: true,
             };
           }
@@ -1620,12 +1620,12 @@ ${workItem._links?.html?.href || 'N/A'}`;
         }
 
         try {
-          // Extract organization name from URL
-          const orgUrl = new URL(AZURE_DEVOPS_ORG_URL);
-          const orgName = orgUrl.pathname.split('/').filter(Boolean)[0];
+          // For on-premise servers, use the organization URL directly
+          // For cloud (dev.azure.com), it would use almsearch.dev.azure.com
           const apiVersion = "7.1-preview.1";
           
-          const url = `https://almsearch.dev.azure.com/${orgName}/_apis/search/wikisearchresults?api-version=${apiVersion}`;
+          // Use the organization URL for on-premise installations
+          const url = `${AZURE_DEVOPS_ORG_URL}/_apis/search/wikisearchresults?api-version=${apiVersion}`;
 
           const requestBody: any = {
             searchText: args.searchText,
@@ -1658,7 +1658,7 @@ ${workItem._links?.html?.href || 'N/A'}`;
           if (!response.ok) {
             const errorText = await response.text();
             return {
-              content: [{ type: "text", text: `Azure DevOps Wiki Search API error: ${response.status} ${response.statusText}\n${errorText}` }],
+              content: [{ type: "text", text: `Azure DevOps Wiki Search API error: ${response.status} ${response.statusText}\nURL: ${url}\nError: ${errorText}` }],
               isError: true,
             };
           }
