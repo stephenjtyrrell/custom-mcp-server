@@ -4,7 +4,7 @@ A Model Context Protocol (MCP) server that enables seamless interaction with Azu
 
 ## ✨ Features
 
-Comprehensive Azure DevOps integration with 25+ tools across multiple categories:
+Comprehensive Azure DevOps integration with 27+ tools across multiple categories:
 
 ### 🏢 Core API (2 tools)
 - **List Projects** - Browse all projects in your organization
@@ -39,7 +39,9 @@ Comprehensive Azure DevOps integration with 25+ tools across multiple categories
 - **Get Page Content** - Retrieve wiki page content
 - **List Pages** - View all pages in a wiki
 
-### 🔍 Search (1 tool)
+### 🔍 Search (3 tools)
+- **Search Code** - Search for code across repositories with filtering
+- **Search Wiki** - Search wiki pages by keywords and content
 - **Search Work Items** - Full-text search across work items
 
 ### ⏱️ Work & Iterations (2 tools)
@@ -57,9 +59,10 @@ Comprehensive Azure DevOps integration with 25+ tools across multiple categories
 - Access to an Azure DevOps on-premise server
 - Personal Access Token (PAT) with the following permissions:
   - **Work Items (Read & Write)** - Required for viewing and modifying work items, adding comments
-  - **Code (Read & Write)** - Required for repository and pull request operations
+  - **Code (Read & Write)** - Required for repository and pull request operations, code search
   - **Build (Read)** - Required for viewing builds and pipelines
   - **Project and Team (Read)** - Required for listing projects and teams
+  - **Wiki (Read)** - Required for wiki search operations
   
   *Note: You can create a PAT with only Read permissions if you only need to query/view data.*
 
@@ -403,6 +406,34 @@ List all pages in a wiki.
 ---
 
 ### Search Tools
+
+#### `mcp_ado_search_code`
+Search for code across Azure DevOps repositories.
+
+**Parameters:**
+- `searchText` (string, required): Keywords to search for in code repositories
+- `project` (array of strings, optional): Filter by project names
+- `repository` (array of strings, optional): Filter by repository names
+- `path` (array of strings, optional): Filter by file paths
+- `branch` (array of strings, optional): Filter by branch names
+- `includeFacets` (boolean, optional): Include facets in results (default: false)
+- `skip` (number, optional): Number of results to skip for pagination (default: 0)
+- `top` (number, optional): Maximum results to return (default: 5)
+
+---
+
+#### `mcp_ado_search_wiki`
+Search Azure DevOps wiki pages by keywords.
+
+**Parameters:**
+- `searchText` (string, required): Keywords to search for in wiki pages
+- `project` (array of strings, optional): Filter by project names
+- `wiki` (array of strings, optional): Filter by wiki names
+- `includeFacets` (boolean, optional): Include facets in results (default: false)
+- `skip` (number, optional): Number of results to skip for pagination (default: 0)
+- `top` (number, optional): Maximum results to return (default: 10)
+
+---
 
 #### `mcp_ado_search_workitem`
 Search work items by text.
