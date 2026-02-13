@@ -56,8 +56,12 @@ Comprehensive Azure DevOps integration with 25+ tools across multiple categories
 - Node.js 18 or higher
 - Access to an Azure DevOps on-premise server
 - Personal Access Token (PAT) with the following permissions:
-  - Work Items (Read)
-  - Project and Team (Read)
+  - **Work Items (Read & Write)** - Required for viewing and modifying work items, adding comments
+  - **Code (Read & Write)** - Required for repository and pull request operations
+  - **Build (Read)** - Required for viewing builds and pipelines
+  - **Project and Team (Read)** - Required for listing projects and teams
+  
+  *Note: You can create a PAT with only Read permissions if you only need to query/view data.*
 
 ## 🚀 Installation
 
@@ -439,7 +443,9 @@ This server includes multiple security measures:
 ### Best Practices
 
 1. **Never commit** your `.env` file or PAT tokens to version control
-2. **Use PATs with minimal permissions** - only grant what's needed (Work Items: Read, Project: Read)
+2. **Use PATs with minimal permissions** - only grant what's needed:
+   - Read-only PAT: For querying and viewing data only
+   - Read/Write PAT: Required for creating/updating work items, adding comments, creating PRs
 3. **Rotate PATs regularly** according to your organization's security policy
 4. **For production**, consider using Azure Key Vault or similar secret management
 5. **Network Security**: Ensure your on-premise server has proper SSL/TLS certificates
@@ -498,7 +504,10 @@ export NODE_TLS_REJECT_UNAUTHORIZED=0
 1. **Verify your PAT**: Test it using Azure DevOps web interface or REST API directly
 2. **Check URL format**: Should be `https://your-server.com/your-organization`
 3. **Network access**: Ensure you can reach the server (try `curl` or browser)
-4. **PAT permissions**: Verify the token has Work Items (Read) and Project (Read) permissions
+4. **PAT permissions**: 
+   - Read operations: Work Items (Read), Project (Read), Build (Read)
+   - Write operations: Work Items (Read & Write), Code (Read & Write)
+   - Verify the token has appropriate scopes for the operations you need
 
 ### MCP Server Not Appearing
 
